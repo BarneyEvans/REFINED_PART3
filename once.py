@@ -320,8 +320,6 @@ class ONCE(object):
             'cam08': [],
             'cam09': []
         }
-
-        # Process each camera, skipping the one corresponding to the current strip
         for cam_no, cam_name in enumerate(self.__class__.camera_names):
             calib_info = frame_info['calib'][cam_name]
             cam_to_velo = calib_info['cam_to_velo']
@@ -330,30 +328,50 @@ class ONCE(object):
             for strip_key, temp_points in strip_points.items():
                 if cam_name in strip_key:
                     continue
-                points.extend(temp_points)
+                for point in temp_points:
+                    points.append((strip_key, point))  # Append tuple of strip key and point
 
-            points_array = np.array(points)
-            points_xyz = points_array[:, :3]
+            points_xyz = np.array([point[1][:3] for point in points])  # Extracting XYZ from points
             points_homo = np.hstack([points_xyz, np.ones((points_xyz.shape[0], 1), dtype=np.float32)])
             points_lidar = np.dot(points_homo, np.linalg.inv(cam_to_velo).T)
             mask = points_lidar[:, 2] > 0
             points_lidar = points_lidar[mask]
-
             points_img = np.dot(points_lidar, cam_intrinsic.T)
             points_img = points_img / points_img[:, [2]]
-
             img_buf = img_list[cam_no]
 
-            for point in points_img:
+            valid_points = [points[i] for i in np.where(mask)[0]]  # Filter points list based on mask
+
+            for point, valid_point in zip(points_img, valid_points):
                 if 0 <= int(point[0]) < img_buf.shape[1] and 0 <= int(point[1]) < img_buf.shape[0]:
                     try:
-                        return_dictionary[cam_name].append(point)
+                        # Include strip key in the return dictionary
+                        return_dictionary[cam_name].append((valid_point[0], point))
                         cv2.circle(img_buf, (int(point[0]), int(point[1])), 2, color=(50, 205, 50), thickness=-1)
                     except:
                         print(int(point[0]), int(point[1]))
 
             points_img_dict[cam_name] = img_buf
-        return return_dictionary
+        return points_img_dict, return_dictionary
+
+    def project_2D_points_to_image(self, seq_id, frame_id, strips):
+        img_list, new_cam_intrinsic_dict = self.undistort_image_v2(seq_id, frame_id)
+        points_img_dict = {}
+        for cam_no, cam_name in enumerate(self.__class__.camera_names):
+            _, points_array = strips[cam_name]
+            points_list = [tuple(point) for point in points_array]
+            img_buff = img_list[cam_no]
+            for point in points_list:
+                if 0 <= int(point[0]) < img_buff.shape[1] and 0 <= int(point[1]) < img_buff.shape[0]:
+                    try:
+                        cv2.circle(img_buff, (int(point[0]), int(point[1])), 2, color=(50, 205, 50), thickness=-1)
+                    except:
+                        print(int(point[0]), int(point[1]))
+            points_img_dict[cam_name] = img_buff
+
+        return points_img_dict
+
+
 
     def get_vital_info(self, seq_id, frame_id):
         split_name = self._find_split_name(seq_id)
@@ -381,7 +399,6 @@ class ONCE(object):
             img_list, new_cam_intrinsic_dict = self.undistort_image_v2(seq_id, frame_id)
         else:
             img_list = [self.load_own_image(path) for path in images]  # Load images from the paths provided
-        dictionary = {}
         point_color_map = {}  # Dictionary to manage points and colors
 
         # Define distinct colors for each camera
