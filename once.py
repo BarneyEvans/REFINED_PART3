@@ -358,19 +358,25 @@ class ONCE(object):
         img_list, new_cam_intrinsic_dict = self.undistort_image_v2(seq_id, frame_id)
         points_img_dict = {}
         for cam_no, cam_name in enumerate(self.__class__.camera_names):
-            _, points_array = strips[cam_name]
-            points_list = [tuple(point) for point in points_array]
+            # Adjusted to handle a list of tuples for each camera
+            if cam_name in strips:
+                points_list = [(strip_id, point) for strip_id, point in strips[cam_name]]
+            else:
+                print(f"No strips data for camera {cam_name}")
+                continue
+
             img_buff = img_list[cam_no]
-            for point in points_list:
+
+            for strip_id, point in points_list:
                 if 0 <= int(point[0]) < img_buff.shape[1] and 0 <= int(point[1]) < img_buff.shape[0]:
                     try:
                         cv2.circle(img_buff, (int(point[0]), int(point[1])), 2, color=(50, 205, 50), thickness=-1)
-                    except:
-                        print(int(point[0]), int(point[1]))
+                    except Exception as e:
+                        print(f"Error drawing point {point}: {e}")
+
             points_img_dict[cam_name] = img_buff
 
         return points_img_dict
-
 
 
     def get_vital_info(self, seq_id, frame_id):

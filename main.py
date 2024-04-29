@@ -3,7 +3,7 @@ from Frustum import return_frustums
 from Calculate_Boundary import distances_from_points_to_frustums, create_boundary_dict
 from General_Utility import image_creation
 from Logging import logger
-from Boundary_Smoothing import smooth_all_boundaries
+from Boundary_Smoothing import smooth_all_boundaries, interpolate_dots_in_strips
 import cv2
 
 
@@ -55,7 +55,7 @@ Calculate Boundary
 
 logger.info("Calculating Distances to edge")
 distances = distances_from_points_to_frustums(unique_points, top_edges, max_threshold)
-  
+
 """
 Refine Boundary
 """
@@ -72,10 +72,10 @@ projected_points_to_images = image_creation(seq_id, frame_id, lidar_boundary_str
 Smooth Boundary
 """
 logger.info("Smooth Boundary")
-smooth_points = smooth_all_boundaries(projected_points_to_images)
+smooth_points = interpolate_dots_in_strips(projected_points_to_images)
 
 
 images_dict = dataset.project_2D_points_to_image(seq_id, frame_id, projected_points_to_images)
 for cam_name, img_buf in images_dict.items():
-            cv2.imwrite(f'images/Smoothing/Test_1/{base_threshold}_{max_threshold}.jpg'.format(cam_name, frame_id),
+            cv2.imwrite(f'images/Smoothing/Test_1/{base_threshold}_{max_threshold}_{cam_name}.jpg'.format(cam_name, frame_id),
                         cv2.cvtColor(img_buf, cv2.COLOR_BGR2RGB))
