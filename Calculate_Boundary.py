@@ -37,4 +37,7 @@ def create_boundary_dict(point_distance, base_threshold, max_threshold):
                 if temp_distance < dynamic_threshold:
                     strip_name = f"{entry['camera']}_strip{entry['edge_idx']}"
                     strip_points[strip_name].append(entry['lidar_point'])
+
+    #for strip_name in strip_points:
+    #    print(strip_name, strip_points[strip_name])
     return strip_points

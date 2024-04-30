@@ -1,32 +1,29 @@
 import numpy as np
 from scipy.ndimage import gaussian_filter
 
-def smooth_all_boundaries(strips, sigma=300):
+def smooth_all_boundaries(strips, sigma=1):
     smoothed_strips = {}
 
-    for camera_id, strips_list in strips.items():
-        smoothed_strips_list = []
+    for camera_id, strip_data in strips.items():
+        smoothed_strip_data = []
 
-        for strip_id, point in strips_list:
-            # We need to check if 'point' is indeed an array-like structure or just a single tuple
-            # If 'point' is a tuple (x, y, 1), convert it to an array
-            if isinstance(point, tuple) or isinstance(point, list):
-                points_array = np.array(point).reshape(1, -1)  # Reshape to treat it as a 2D array of one point
+        for strip_id, points in strip_data:
+            # Ensure points are a numpy array for the math operations
+            points_array = np.array(points, dtype=float)
+
+            # Apply Gaussian filter to smooth the x and y coordinates
+            if points_array.ndim == 2:  # Ensure it is a 2D array
+                smooth_points_x = gaussian_filter(points_array[:, 0], sigma=sigma)
+                smooth_points_y = gaussian_filter(points_array[:, 1], sigma=sigma)
+                smooth_points = np.array([smooth_points_x, smooth_points_y, np.ones_like(smooth_points_x)]).T
             else:
-                # If already an array, ensure it is in the correct shape
-                points_array = np.array(point)
+                # Fallback in case points are somehow not in expected 2D form
+                smooth_points = points_array
 
-            # Check if points_array is 2D and handle accordingly
-            if points_array.ndim == 1:
-                points_array = points_array.reshape(1, -1)
+            # Add the smoothed points, ensuring they are in the correct format
+            smoothed_strip_data.append((strip_id, smooth_points.squeeze()))  # .squeeze() to remove extra dimensions
 
-            smooth_points_x = gaussian_filter(points_array[:, 0], sigma=sigma)
-            smooth_points_y = gaussian_filter(points_array[:, 1], sigma=sigma)
-
-            smoothed_points = np.stack((smooth_points_x, smooth_points_y, np.ones_like(smooth_points_x)), axis=-1)
-            smoothed_strips_list.append((strip_id, smoothed_points))
-
-        smoothed_strips[camera_id] = smoothed_strips_list
+        smoothed_strips[camera_id] = smoothed_strip_data
 
     return smoothed_strips
 
