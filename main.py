@@ -6,6 +6,7 @@ from Logging import logger
 from Boundary_Smoothing import smooth_all_boundaries, interpolate_dots_in_strips
 from Boundary_Deduction import check_point_in_overlaps
 import cv2
+import time
 
 
 
@@ -35,6 +36,9 @@ sigma = 5
 
 query_points_single = [[100, 860]]
 
+image_height = 1920
+image_width = 1020
+
 save_location = rf"C:\Users\evans\OneDrive - University of Southampton\Desktop\Year 3\Semester 2\NLP_FINAL_COURSEWORK\pythonProject1\Images\Tests\Test1\Base_{base_threshold}_Max_{max_threshold}"
 
 
@@ -45,12 +49,13 @@ Extract lidar points and camera parameters
 
 logger.info("Extracting camera parameters")
 new_cam_intrinsics_dict, old_intrinsic_dict, extrinsic_dict = dataset.get_vital_info(seq_id, frame_id)
-logger.info("Extracting Pointclud")
+logger.info("Extracting Pointcloud")
 img_buf_dict, unique_points, colours = dataset.project_lidar_to_image_with_colour(seq_id, frame_id)
 
 """
 Calculate Frustum Corners
 """
+
 logger.info("Extracting frustum edges")
 package_info = [new_cam_intrinsics_dict, old_intrinsic_dict, extrinsic_dict, cam_names, near_plane, far_plane]
 frustums, top_edges = return_frustums(package_info)
@@ -58,9 +63,8 @@ frustums, top_edges = return_frustums(package_info)
 """
 Generate general overlapping regions
 """
-
-overlap = project_frustum_to_image(new_cam_intrinsics_dict, extrinsic_dict, frustums)
-print(overlap)
+time.sleep(0.1)
+overlap = project_frustum_to_image(new_cam_intrinsics_dict, extrinsic_dict, frustums, image_width, image_height)
 
 
 
@@ -77,7 +81,6 @@ Refine Boundary
 """
 logger.info("Refining Boundary")
 lidar_boundary_strips = create_boundary_dict(distances, base_threshold, max_threshold)
-
 
 
 
@@ -98,7 +101,7 @@ logger.info("Smooth Boundary")
 Object in Overlap
 """
 logger.info("Computing whether an objecting is in the overlap")
-results = check_point_in_overlaps("cam07", query_points_single, projected_points_to_images)
+results = check_point_in_overlaps("cam03", query_points_single, projected_points_to_images, overlap)
 
 print(results)
 

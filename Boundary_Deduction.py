@@ -2,33 +2,79 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-def get_strip_data_for_camera(camera_id, strips, min_size=20):
+def check_point_in_overlaps(camera_id, query_points, strips, overlap):
     """
-    Retrieves the strip data for a specific camera, filtering out strips with fewer than min_size points.
+    Determines if query points or a bounding box lies within overlapping regions of a specified camera.
+
+    Args:
+    camera_id (str): The camera ID where the check is performed.
+    query_points (list): List of points (either a single point or four points defining a bounding box).
+    strips (dict): Dictionary of all strips data indexed by camera IDs.
+
+    Returns:
+    str: Formatted description of the overlap results.
+    """
+    # Retrieve strip data for the specified camera
+    strip_data = get_strip_data_for_camera(camera_id, strips, overlap)
+
+    # Determine if the input is a single point or a bounding box
+    if len(query_points) == 1:
+        query_type = 'point'
+    elif len(query_points) == 4:
+        query_type = 'box'
+    else:
+        raise ValueError(
+            "Invalid number of points provided. Must be either one point or four points for a bounding box.")
+
+    # Find the closest points by Y-coordinate for each query point
+    all_closest_points = find_closest_point_by_y(query_points, strip_data)
+
+    # Check relative X positions based on overlap direction
+    all_x_position_results = check_relative_x_position(all_closest_points)
+
+    # Validate overlap conditions based on the type of query
+    if query_type == 'point':
+        valid_box = "zero"  # Strictest setting for a single point
+    else:  # Assuming 'box' type
+        valid_box = "one"  # Allowing some flexibility for bounding boxes
+
+    all_valid_strips = validate_overlap_conditions(all_x_position_results, valid_box)
+
+    # Compile and return results
+    final_results = compile_results(all_valid_strips, query_points, camera_id, query_type)
+
+    #plot_strips_and_points(strips, query_points, camera_id)
+    return final_results
+
+
+def get_strip_data_for_camera(camera_id, strips, overlap):
+    """
+    Retrieves and filters the strip data for a specific camera based on overlap definitions.
 
     Args:
     camera_id (str): The identifier for the camera.
     strips (dict): The dictionary containing all cameras' strips data.
-    min_size (int): Minimum number of points a strip must have to be considered.
+    overlap (dict): Dictionary defining valid overlapping cameras for each camera.
 
     Returns:
-    list: A list of tuples, each containing the strip identifier and the corresponding point,
-          but only for strips meeting the min_size criterion.
+    list: A filtered list of tuples, each containing the strip identifier and the corresponding point,
+          filtered by the overlap criteria.
     """
+    # Get the list of cameras that are supposed to overlap with the given camera_id
+    valid_cameras = overlap.get(camera_id, [])
     strip_data = strips.get(camera_id, [])
-    strip_count = {}
 
-    # Count occurrences of each strip identifier
-    for strip_id, _ in strip_data:
-        if strip_id in strip_count:
-            strip_count[strip_id] += 1
-        else:
-            strip_count[strip_id] = 1
+    # Filter out strips that do not correspond to a valid overlapping camera
+    filtered_strip_data = [item for item in strip_data if item[0].split('_')[0] in valid_cameras]
 
-    for data in strip_count:
-        print(strip_count[data])
-    # Filter out any strips with fewer than min_size points
-    filtered_strip_data = [item for item in strip_data if strip_count[item[0]] >= min_size]
+    # Check if there is any camera in the valid_cameras that does not appear in any strip
+    strip_cameras = set(strip[0].split('_')[0] for strip in strip_data)
+    missing_cameras = [cam for cam in valid_cameras if cam not in strip_cameras]
+
+    # Handle the case where a valid overlapping camera has no corresponding strips
+    if missing_cameras:
+        # You might want to define how you handle this scenario. Here's a placeholder:
+        print(f"Assuming all points in Camera {camera_id} overlap with: {', '.join(missing_cameras)}")
 
     return filtered_strip_data
 
@@ -179,49 +225,6 @@ def compile_results(all_valid_strips, query_points, camera_id, query_type):
     return compiled_results
 
 
-def check_point_in_overlaps(camera_id, query_points, strips):
-    """
-    Determines if query points or a bounding box lies within overlapping regions of a specified camera.
-
-    Args:
-    camera_id (str): The camera ID where the check is performed.
-    query_points (list): List of points (either a single point or four points defining a bounding box).
-    strips (dict): Dictionary of all strips data indexed by camera IDs.
-
-    Returns:
-    str: Formatted description of the overlap results.
-    """
-    # Retrieve strip data for the specified camera
-    strip_data = get_strip_data_for_camera(camera_id, strips)
-
-    # Determine if the input is a single point or a bounding box
-    if len(query_points) == 1:
-        query_type = 'point'
-    elif len(query_points) == 4:
-        query_type = 'box'
-    else:
-        raise ValueError(
-            "Invalid number of points provided. Must be either one point or four points for a bounding box.")
-
-    # Find the closest points by Y-coordinate for each query point
-    all_closest_points = find_closest_point_by_y(query_points, strip_data)
-
-    # Check relative X positions based on overlap direction
-    all_x_position_results = check_relative_x_position(all_closest_points)
-
-    # Validate overlap conditions based on the type of query
-    if query_type == 'point':
-        valid_box = "zero"  # Strictest setting for a single point
-    else:  # Assuming 'box' type
-        valid_box = "one"  # Allowing some flexibility for bounding boxes
-
-    all_valid_strips = validate_overlap_conditions(all_x_position_results, valid_box)
-
-    # Compile and return results
-    final_results = compile_results(all_valid_strips, query_points, camera_id, query_type)
-
-    #plot_strips_and_points(strips, query_points, camera_id)
-    return final_results
 
 def plot_strips_and_points(strips, query_points, camera_id):
     """

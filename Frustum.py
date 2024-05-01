@@ -51,129 +51,95 @@ def return_frustums(list):
     return frustum_dict, top_edges
 
 
-def project_frustum_to_image(cam_intrinsics, cam_to_velo, frustum_dict):
-    plot_frustums(frustum_dict)
-    print(frustum_dict)
+def project_frustum_to_image(cam_intrinsics, cam_to_velo, frustum_dict, image_width, image_height):
     overlap_dict = {}
-    plot_data = {cam_id: {} for cam_id in frustum_dict}  # Prepare to store points for all cameras
-    print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-    print(plot_data)
-    print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+    point_dictionary = {}  # New dictionary for counting overlapping points
+    points_list = []
+    points_cam_map = []  # List to keep track of which points belong to which camera
 
+    # Collect all points into a single list while keeping track of their source camera
+    for cam_name, points in frustum_dict.items():
+        points_list.extend(points)
+        points_cam_map.extend([cam_name] * len(points))  # Repeat cam_name for each point
+
+    points_list = np.array(points_list)
 
     # Iterate through each camera as the source of the frustum points
     for source_cam_id, frustum_corners in frustum_dict.items():
         overlap_dict[source_cam_id] = []
+        point_dictionary[source_cam_id] = {}  # Initialize for point counting
+
         source_intrinsics = cam_intrinsics[source_cam_id]
         source_cam_to_velo = cam_to_velo[source_cam_id]
-        source_points_image = project_points(source_intrinsics, source_cam_to_velo, frustum_corners)
 
-        # Iterate through each camera to project source frustum points onto their image planes
-        for target_cam_id, target_intrinsics in cam_intrinsics.items():
-            if source_cam_id == target_cam_id:
-                continue
+        cam_intri = np.hstack([source_intrinsics, np.zeros((3, 1))])
+        point_xyz = points_list[:, :3]
+        points_homo = np.hstack(
+            [point_xyz, np.ones(point_xyz.shape[0], dtype=np.float32).reshape((-1, 1))])
+        points_lidar = np.dot(points_homo, np.linalg.inv(source_cam_to_velo).T)
+        mask = points_lidar[:, 2] > 0
+        points_lidar = points_lidar[mask]
+        points_cam_map_filtered = [points_cam_map[i] for i, m in enumerate(mask) if m]
 
-            target_cam_to_velo = cam_to_velo[target_cam_id]
-            # Project the source frustum corners onto the target camera's image plane
-            target_points_image = project_points(target_intrinsics, target_cam_to_velo, frustum_corners)
-            # Check overlap and store points
-            if check_overlap(target_points_image, target_intrinsics):
-                overlap_dict[source_cam_id].append(target_cam_id)
-                if source_cam_id not in plot_data[target_cam_id]:
-                    plot_data[target_cam_id][source_cam_id] = []
-                plot_data[target_cam_id][source_cam_id].append(target_points_image[target_points_image[:, 2] > 0])
+        points_img = np.dot(points_lidar, cam_intri.T)
+        points_img = points_img / points_img[:, [2]]
 
-    print(
-        "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-    print(plot_data)
-    print(
-        "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+        # Check if points are within the image bounds and record overlaps
+        for point, cam_id in zip(points_img, points_cam_map_filtered):
+            if -5000 <= point[1] < image_width + 5000 and 0 <= point[0] < image_height:
+                if cam_id != source_cam_id:  # Avoid self-counting
+                    # Update the list in overlap_dict
+                    if cam_id not in overlap_dict[source_cam_id]:
+                        overlap_dict[source_cam_id].append(cam_id)
 
-    # Plot overlapping points for each camera
-    for cam_id, data in plot_data.items():
-        if data:  # If there are overlapping points to plot for this camera
-            plot_overlapping_points(data, cam_intrinsics[cam_id], cam_id)
+                    # Count the points in point_dictionary
+                    if cam_id in point_dictionary[source_cam_id]:
+                        point_dictionary[source_cam_id][cam_id] += 1
+                    else:
+                        point_dictionary[source_cam_id][cam_id] = 1
+
+    overlap_dict = refine_overlaps(overlap_dict, point_dictionary)
+    return overlap_dict
+
+
+
+def refine_overlaps(overlap_dict, point_dictionary):
+    # Iterate through the point_dictionary to find entries with significant overlap (more than 4 points)
+    for cam_id, overlaps in point_dictionary.items():
+        for target_cam, point_count in overlaps.items():
+            if point_count > 4:  # Check if the point count is greater than 4
+                # Check if the reverse relationship exists in overlap_dict
+                if cam_id not in overlap_dict.get(target_cam, []):
+                    # If not, add cam_id to the target_cam's list in overlap_dict
+                    if target_cam in overlap_dict:
+                        overlap_dict[target_cam].append(cam_id)
+                    else:
+                        overlap_dict[target_cam] = [cam_id]
 
     return overlap_dict
 
-def plot_overlapping_points(plot_data, intrinsics, camera_id):
-    # Extract the image dimensions from the intrinsics matrices
-    width = intrinsics[0, 2] * 2
-    height = intrinsics[1, 2] * 2
-
-    # Setup the plot
-    fig, ax = plt.subplots(figsize=(8, 6))
-    colors = ['red', 'blue', 'green', 'purple', 'orange', 'cyan', 'brown', 'pink', 'gray', 'olive']
-    color_iter = iter(colors)
-
-    for source_cam_id, points_list in plot_data.items():
-        color = next(color_iter, 'black')  # Cycle through colors, default to black if exhausted
-        for points in points_list:
-            ax.scatter(points[:, 0], points[:, 1], color=color, label=f'From {source_cam_id}')
-
-    ax.set_xlim(0, width)
-    ax.set_ylim(0, height)
-    ax.set_title(f'Overlapping Points on {camera_id}')
-    ax.set_xlabel('Image Width')
-    ax.set_ylabel('Image Height')
-    ax.legend(title='Point Sources')
-    ax.invert_yaxis()  # Invert the y-axis to match the image coordinate system
-    plt.show()
-
-def project_points(intrinsics, cam_to_velo, points):
-    # Convert points to homogeneous coordinates
-    points_homo = np.hstack([points, np.ones((points.shape[0], 1))])
-
-    # Transform points from world to camera coordinates
-    points_cam = np.dot(np.linalg.inv(cam_to_velo), points_homo.T).T
-
-    # Filter points in front of the camera
-    points_cam = points_cam[points_cam[:, 2] > 0]
-
-    # Apply intrinsic matrix to project points onto the image plane
-    # Only take the first three rows (x, y, z)
-    points_image = np.dot(intrinsics, points_cam[:, :3].T).T
-    points_image = points_image / points_image[:, 2][:, np.newaxis]  # Normalize by the depth
-
-    return points_image
 
 
-def check_overlap(points_image, intrinsics):
-    img_width = intrinsics[0, 2] * 2
-    img_height = intrinsics[1, 2] * 2
-    in_bounds = (points_image[:, 0] >= 0) & (points_image[:, 0] < img_width) & \
-                (points_image[:, 1] >= 0) & (points_image[:, 1] < img_height)
-    if np.any(in_bounds):
-        print(f"Points within image bounds: {points_image[in_bounds]}")  # Debug: print points within bounds
-    return np.any(in_bounds)
 
 
-def plot_frustums(frustum_dict):
-    """
-    Plots the frustums in 3D space with edges connecting the corners.
 
-    :param frustum_dict: A dictionary where keys are camera IDs and values are numpy arrays of shape (8, 3) representing frustum corners.
-    """
-    vis = o3d.visualization.Visualizer()
-    vis.create_window()
 
-    for cam_id, corners in frustum_dict.items():
-        # Ensure the corners are in the correct order, if not, reorder them
-        lines = [
-            [0, 1], [1, 2], [2, 3], [3, 0],  # Bottom rectangle
-            [4, 5], [5, 6], [6, 7], [7, 4],  # Top rectangle
-            [0, 4], [1, 5], [2, 6], [3, 7]  # Side edges connecting bottom and top rectangles
-        ]
-        colors = [[1, 0, 0] for _ in range(len(lines))]  # Red lines
 
-        # Create Open3D line set from corners and lines
-        line_set = o3d.geometry.LineSet(
-            points=o3d.utility.Vector3dVector(corners),
-            lines=o3d.utility.Vector2iVector(lines)
-        )
-        line_set.colors = o3d.utility.Vector3dVector(colors)
-        vis.add_geometry(line_set)
 
-    # Run the visualizer
-    vis.run()
-    vis.destroy_window()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
