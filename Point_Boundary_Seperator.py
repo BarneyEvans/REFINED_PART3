@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-def check_point_in_overlaps(camera_id, query_points, strips, overlap, image_height):
+def check_point_in_overlaps(camera_id, query_points, strips, overlap):
     """
     Determines if query points or a bounding box lies within overlapping regions of a specified camera.
 
@@ -15,7 +15,7 @@ def check_point_in_overlaps(camera_id, query_points, strips, overlap, image_heig
     str: Formatted description of the overlap results.
     """
     # Retrieve strip data for the specified camera
-    strip_data, missing_cameras = get_strip_data_for_camera(camera_id, strips, overlap, image_height)
+    strip_data, missing_cameras = get_strip_data_for_camera(camera_id, strips, overlap)
 
     # Determine if the input is a single point or a bounding box
     if len(query_points) == 1:
@@ -47,7 +47,7 @@ def check_point_in_overlaps(camera_id, query_points, strips, overlap, image_heig
     return final_results
 
 
-def get_strip_data_for_camera(camera_id, strips, overlap, img_height):
+def get_strip_data_for_camera(camera_id, strips, overlap):
     """
     Retrieves and filters the strip data for a specific camera based on overlap definitions.
 
@@ -61,7 +61,7 @@ def get_strip_data_for_camera(camera_id, strips, overlap, img_height):
           filtered by the overlap criteria.
     """
 
-    strips = correct_strip_data(strips, img_height)
+    strips = correct_strip_data(strips)
     # Get the list of cameras that are supposed to overlap with the given camera_id
     valid_cameras = overlap.get(camera_id, [])
     strip_data = strips.get(camera_id, [])
@@ -87,7 +87,7 @@ def get_strip_data_for_camera(camera_id, strips, overlap, img_height):
     return filtered_strip_data, missing_cameras
 
 
-def correct_strip_data(strips, img_height):
+def correct_strip_data(strips):
     # Assuming max Y-value needs to be dynamically calculated or is known (e.g., 1000)
     max_y = 0
     # First, find the maximum Y value if it's not known
@@ -221,7 +221,8 @@ def validate_overlap_conditions(all_x_position_results, valid_box):
 
 def compile_results(all_valid_strips, query_points, camera_id, query_type, missing_cameras):
     """
-    Compiles and formats the results based on the validation checks.
+    Compiles and formats the results based on the validation checks and creates a dictionary mapping each point
+    to the camera IDs of overlapping regions.
 
     Args:
     all_valid_strips (list of lists): Each sublist contains validated strip identifiers for each query point or bounding box.
@@ -231,23 +232,28 @@ def compile_results(all_valid_strips, query_points, camera_id, query_type, missi
 
     Returns:
     list of str: Formatted descriptions of the results for each query.
+    dict: A dictionary mapping each query point to a tuple containing the camera ID and a list of overlapping camera IDs.
     """
     compiled_results = []
+    overlap_dict = {}
     for idx, valid_strips in enumerate(all_valid_strips):
+        # Get overlapping camera IDs from strip identifiers
+        overlap_cams = [strip.split('_')[0] for strip in valid_strips]
+        if missing_cameras:
+            overlap_cams.extend(missing_cameras)
+        # Format results message
         if not valid_strips:
             result = f"This {query_type} does not lie within an overlapping region within Camera {camera_id}"
+            overlap_dict[tuple(query_points[idx])] = (camera_id, [])
         else:
-            overlap_cams = ', '.join(strip.split('_')[0] for strip in valid_strips)
-            if missing_cameras is not None:
-                for camera in missing_cameras:
-                    overlap_cams = overlap_cams + ", " + str(camera)
             if len(valid_strips) == 1:
-                result = f"Within Camera {camera_id} the {query_type} {query_points[idx]} lies within the following overlap region of {overlap_cams}"
+                result = f"Within Camera {camera_id} the {query_type} {query_points[idx]} lies within the following overlap region of {', '.join(overlap_cams)}"
             else:
-                result = f"Within Camera {camera_id} the {query_type} {query_points[idx]} lies within the following overlap regions of {overlap_cams}"
+                result = f"Within Camera {camera_id} the {query_type} {query_points[idx]} lies within the following overlap regions of {', '.join(overlap_cams)}"
+            overlap_dict[tuple(query_points[idx])] = (camera_id, overlap_cams)
         compiled_results.append(result)
 
-    return compiled_results
+    return compiled_results, overlap_dict
 
 
 

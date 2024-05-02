@@ -2,6 +2,7 @@ from ultralytics import YOLO
 import os
 import cv2
 from YOLOV8_Boxes_Class import DetectionInfo
+from General_Utility import check_folder
 
 
 # Load the trained model
@@ -49,17 +50,7 @@ def predict_on_images(model_path, image_folder_path, cams):
 
     return detections
 
-def check_folder(save_folder):
-    if not os.path.exists(save_folder):
-        os.makedirs(save_folder)
-    else:
-        for filename in os.listdir(save_folder):
-            file_path = os.path.join(save_folder, filename)
-            try:
-                if os.path.isfile(file_path):
-                    os.unlink(file_path)
-            except Exception as e:
-                print(f"Failed to delete {file_path}. Reason: {e}")
+
 
 
 def draw_boxes(image, boxes, labels, confidences, colors=None):

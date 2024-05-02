@@ -68,3 +68,16 @@ def image_creation(seq, frame, frust_ums, save_location, dataset):
         cv2.imwrite(os.path.join(save_location, f"{seq}_{frame}_{cam_name}_Boundaries.jpg"),
                     cv2.cvtColor(img_buf, cv2.COLOR_BGR2RGB))
     return info
+
+
+def check_folder(save_folder):
+    if not os.path.exists(save_folder):
+        os.makedirs(save_folder)
+    else:
+        for filename in os.listdir(save_folder):
+            file_path = os.path.join(save_folder, filename)
+            try:
+                if os.path.isfile(file_path):
+                    os.unlink(file_path)
+            except Exception as e:
+                print(f"Failed to delete {file_path}. Reason: {e}")

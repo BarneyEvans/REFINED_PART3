@@ -4,7 +4,7 @@ from Calculate_Boundary import distances_from_points_to_frustums, create_boundar
 from General_Utility import image_creation, visualize_coloured_frustums_with_point_cloud
 from Logging import logger
 from Boundary_Smoothing import smooth_all_boundaries, interpolate_dots_in_strips
-from Boundary_Deduction import check_point_in_overlaps
+from Point_Boundary_Seperator import check_point_in_overlaps
 from YoloV8_On_Dataset import predict_on_images
 from Load_And_Save import load_and_save_images
 from Determine_Object_Overlap import bounding_boxes_in_overlap
@@ -109,20 +109,12 @@ logger.info("Predicting_Images_Using_Yolo_Model")
 yolo_data = predict_on_images(yolo_model_path, image_save, cam_names)
 
 
-
-
-"""
-Object in Overlap TEST
-"""
-logger.info("Computing whether an objecting is in the overlap")
-#results = check_point_in_overlaps("cam06", query_points_single, projected_points_to_images, overlap, image_height)
-
 """
 Determine whether an YOLO bounding box is in the overlap
 """
 
 logger.info("Determining whether an objecting is in the YOLO bounding box overlap")
-bounding_boxes_in_overlap(cam_names, projected_points_to_images, overlap, image_height, yolo_data)
+bounding_boxes_in_overlap(projected_points_to_images, overlap, yolo_data, image_save)
 
 
 
