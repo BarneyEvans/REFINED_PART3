@@ -48,13 +48,23 @@ def visualize_coloured_frustums_with_point_cloud(lidar_points, point_colours, fr
 
 
 def image_creation(seq, frame, frust_ums, save_location, dataset):
+    save_location = os.path.join(save_location, "Overlap_Boundaries")
     if not os.path.exists(save_location):
         os.makedirs(save_location)
+    else:
+        if os.listdir(save_location):
+            for filename in os.listdir(save_location):
+                file_path = os.path.join(save_location, filename)
+                try:
+                    if os.path.isfile(file_path):
+                        os.unlink(file_path)
+                except Exception as e:
+                    print(f"Failed to delete {file_path}. Reason: {e}")
     if isinstance(frust_ums, dict):
         img_buf_dict, info = dataset.project_own_lidar_to_image_remove_noise(seq, frame, frust_ums)
     else:
         img_buf_dict, info = dataset.project_own_lidar_to_image(seq, frame, frust_ums)
     for cam_name, img_buf in img_buf_dict.items():
-        cv2.imwrite(os.path.join(save_location, f"{cam_name}_{seq}_{frame}.jpg"),
+        cv2.imwrite(os.path.join(save_location, f"{seq}_{frame}_{cam_name}_Boundaries.jpg"),
                     cv2.cvtColor(img_buf, cv2.COLOR_BGR2RGB))
     return info

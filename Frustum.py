@@ -86,7 +86,7 @@ def project_frustum_to_image(cam_intrinsics, cam_to_velo, frustum_dict, image_wi
 
         # Check if points are within the image bounds and record overlaps
         for point, cam_id in zip(points_img, points_cam_map_filtered):
-            if -5000 <= point[1] < image_width + 5000 and 0 <= point[0] < image_height:
+            if 0 <= point[0] < image_width and -5000 <= point[1] < image_height + 5000:
                 if cam_id != source_cam_id:  # Avoid self-counting
                     # Update the list in overlap_dict
                     if cam_id not in overlap_dict[source_cam_id]:
@@ -99,6 +99,7 @@ def project_frustum_to_image(cam_intrinsics, cam_to_velo, frustum_dict, image_wi
                         point_dictionary[source_cam_id][cam_id] = 1
 
     overlap_dict = refine_overlaps(overlap_dict, point_dictionary)
+
     return overlap_dict
 
 
