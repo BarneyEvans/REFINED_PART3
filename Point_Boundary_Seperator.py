@@ -1,21 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
-
+from matplotlib.cm import get_cmap
 
 def check_point_in_overlaps(camera_id, query_points, strips, overlap):
-    """
-    Determines if query points or a bounding box lies within overlapping regions of a specified camera.
-
-    Args:
-    camera_id (str): The camera ID where the check is performed.
-    query_points (list): List of points (either a single point or four points defining a bounding box).
-    strips (dict): Dictionary of all strips data indexed by camera IDs.
-
-    Returns:
-    str: Formatted description of the overlap results.
-    """
     # Retrieve strip data for the specified camera
-    strip_data, missing_cameras = get_strip_data_for_camera(camera_id, strips, overlap)
+    strip_data, missing_cameras = get_strip_data_for_camera(camera_id, strips, overlap, query_points)
 
     # Determine if the input is a single point or a bounding box
     if len(query_points) == 1:
@@ -43,30 +32,19 @@ def check_point_in_overlaps(camera_id, query_points, strips, overlap):
     # Compile and return results
     final_results = compile_results(all_valid_strips, query_points, camera_id, query_type, missing_cameras)
 
-
+    #if camera_id == "cam03":
+    #    plot_strips_and_points(strips, query_points, camera_id)
     return final_results
 
 
-def get_strip_data_for_camera(camera_id, strips, overlap):
-    """
-    Retrieves and filters the strip data for a specific camera based on overlap definitions.
-
-    Args:
-    camera_id (str): The identifier for the camera.
-    strips (dict): The dictionary containing all cameras' strips data.
-    overlap (dict): Dictionary defining valid overlapping cameras for each camera.
-
-    Returns:
-    list: A filtered list of tuples, each containing the strip identifier and the corresponding point,
-          filtered by the overlap criteria.
-    """
-
-    strips = correct_strip_data(strips)
+def get_strip_data_for_camera(camera_id, strips, overlap, query_points):
+    #if camera_id == "cam03":
+    #    plot_strips_and_points(strips, query_points, camera_id)
     # Get the list of cameras that are supposed to overlap with the given camera_id
     valid_cameras = overlap.get(camera_id, [])
+    print(strips)
     strip_data = strips.get(camera_id, [])
 
-    # Filter out strips that do not correspond to a valid overlapping camera
     filtered_strip_data = [item for item in strip_data if item[0].split('_')[0] in valid_cameras]
 
     # Check if there is any camera in the valid_cameras that does not appear in any strip
@@ -74,68 +52,18 @@ def get_strip_data_for_camera(camera_id, strips, overlap):
     missing_cameras = []
     for cam in valid_cameras:
         if cam not in strip_cameras:
+
             missing_cameras.append(cam)
-
-
-    # Handle the case where a valid overlapping camera has no corresponding strips
     if missing_cameras:
-        # You might want to define how you handle this scenario. Here's a placeholder:
-        print(f"Assuming all points in Camera {camera_id} overlap with: {', '.join(missing_cameras)}")
-
-
+        pass
+        #print(f"Assuming all points in Camera {camera_id} overlap with: {', '.join(missing_cameras)}")
 
     return filtered_strip_data, missing_cameras
 
-
-def correct_strip_data(strips):
-    # Assuming max Y-value needs to be dynamically calculated or is known (e.g., 1000)
-    max_y = 0
-    # First, find the maximum Y value if it's not known
-    for cam_id, strip_data in strips.items():
-        for _, coords in strip_data:
-            if coords[1] > max_y:
-                max_y = coords[1]
-
-    # Then, correct the Y-coordinate based on the maximum found
-    for cam_id in strips:
-        for i, (strip_id, coords) in enumerate(strips[cam_id]):
-            corrected_y = max_y - coords[1]
-            strips[cam_id][i] = (strip_id, np.array([coords[0], corrected_y, coords[2]]))
-    return strips
-def determine_query_points(input_points):
-    """
-    Determines if the input is a single point or a bounding box based on the number of points provided.
-
-    Args:
-    input_points (list): A list of points. Each point is represented as [x, y].
-
-    Returns:
-    dict: A dictionary containing the type ('single' or 'box') and the points.
-    """
-    if len(input_points) == 1:
-        return {'type': 'single', 'points': input_points}
-    elif len(input_points) == 4:
-        return {'type': 'box', 'points': input_points}
-    else:
-        raise ValueError("Invalid number of points provided. Must be either one point or four points.")
-
-
 def find_closest_point_by_y(query_points, strip_data):
-    """
-    Finds the closest strip point by Y-coordinate for each query point from each strip.
-
-    Args:
-    query_points (list): A list of points, each represented as [x, y].
-    strip_data (list): A list of tuples from the strips data for a camera, each containing a strip identifier and a point.
-
-    Returns:
-    list: A list containing lists of tuples for each query point, where each tuple contains the closest strip identifier,
-          strip point, and the query point it corresponds to.
-    """
     all_closest_points = []
     for query_point in query_points:
         closest_points = []
-        # Initialize a dictionary to track the closest point for each strip
         min_y_diffs = {}
         closest_for_each_strip = {}
 
@@ -160,19 +88,6 @@ def find_closest_point_by_y(query_points, strip_data):
 
 
 def check_relative_x_position(all_closest_points):
-    """
-    Determines if each query point's X-coordinate is within the expected range of its closest strip point's X-coordinate,
-    handling a nested list of closest points.
-
-    Args:
-    all_closest_points (list of lists): Each sublist contains tuples for each query point,
-                                        each tuple containing a strip identifier, the closest point,
-                                        and the query point.
-
-    Returns:
-    list of lists: A nested list of results for each query point, each sublist indicating whether
-                   the query point meets the X-coordinate condition for each of its closest points.
-    """
     all_results = []
     for closest_points in all_closest_points:
         results = []
@@ -186,17 +101,6 @@ def check_relative_x_position(all_closest_points):
 
 
 def validate_overlap_conditions(all_x_position_results, valid_box):
-    """
-    Validates the overlap conditions for all query points based on the valid_box criteria.
-
-    Args:
-    all_x_position_results (list of lists): Nested list of results, each sublist corresponding to a query point,
-                                            containing tuples of (strip_id, boolean status, query_point).
-    valid_box (str): Specifies the tolerance ("zero", "one", "two").
-
-    Returns:
-    list of lists: Each sublist contains strip identifiers where the query point meets the overlap conditions.
-    """
     all_valid_strips = []
     tolerance_map = {"zero": 0, "one": 1, "two": 2}
     allowed_failures = tolerance_map.get(valid_box, 0)
@@ -220,20 +124,6 @@ def validate_overlap_conditions(all_x_position_results, valid_box):
 
 
 def compile_results(all_valid_strips, query_points, camera_id, query_type, missing_cameras):
-    """
-    Compiles and formats the results based on the validation checks and creates a dictionary mapping each point
-    to the camera IDs of overlapping regions.
-
-    Args:
-    all_valid_strips (list of lists): Each sublist contains validated strip identifiers for each query point or bounding box.
-    query_points (list): List of query points or bounding box corners.
-    camera_id (str): Camera ID where the check is performed.
-    query_type (str): Type of query ("point" or "box").
-
-    Returns:
-    list of str: Formatted descriptions of the results for each query.
-    dict: A dictionary mapping each query point to a tuple containing the camera ID and a list of overlapping camera IDs.
-    """
     compiled_results = []
     overlap_dict = {}
     for idx, valid_strips in enumerate(all_valid_strips):
@@ -242,7 +132,7 @@ def compile_results(all_valid_strips, query_points, camera_id, query_type, missi
         if missing_cameras:
             overlap_cams.extend(missing_cameras)
         # Format results message
-        if not valid_strips:
+        if not valid_strips and len(missing_cameras) == 0:
             result = f"This {query_type} does not lie within an overlapping region within Camera {camera_id}"
             overlap_dict[tuple(query_points[idx])] = (camera_id, [])
         else:
@@ -256,29 +146,37 @@ def compile_results(all_valid_strips, query_points, camera_id, query_type, missi
     return compiled_results, overlap_dict
 
 
-
 def plot_strips_and_points(strips, query_points, camera_id):
-    """
-    Plots strips and query points for visual analysis.
-
-    Args:
-    strips (dict): Dictionary containing strip data where keys are camera IDs.
-    query_points (list): List of points to query, visualized distinctly.
-    camera_id (str): Camera ID to filter strips for plotting relevant data.
-    """
     fig, ax = plt.subplots()
-    # Plot each strip
-    for strip_id, point in strips.get(camera_id, []):
-        ax.plot(point[0], point[1], 'ro-')  # Red 'o' for points and '-' connects them
-        ax.text(point[0], point[1], f'{strip_id}', color='blue')  # Label strip ids next to points
+
+    # Check and extract data from strips
+    strip_data = strips.get(camera_id, [])
+    if not strip_data or not all(len(data) == 2 for data in strip_data):
+        print("Error: Data format is incorrect or missing")
+        return
+
+    # Generate a color map for unique strip_ids
+    unique_strip_ids = list(set(strip_id for strip_id, _ in strip_data))
+    color_map = get_cmap('tab20')  # Use a colormap with sufficient distinct colors
+    colors = {strip_id: color_map(i / len(unique_strip_ids)) for i, strip_id in enumerate(unique_strip_ids)}
+
+    # Plot each strip point
+    legend_handled = set()  # To handle legend entries
+    for strip_id, point in strip_data:
+        if strip_id not in legend_handled:
+            ax.plot(point[0], point[1], 'o-', color=colors[strip_id], label=f'Strip {strip_id}')
+            legend_handled.add(strip_id)
+        else:
+            ax.plot(point[0], point[1], 'o-', color=colors[strip_id])
 
     # Plot query points
     for point in query_points:
         ax.plot(point[0], point[1], 'go')  # Green 'o' for query points
-        ax.text(point[0], point[1], 'Query Point', color='green')
+        ax.text(point[0], point[1], 'Query Point', color='green', fontsize=8, verticalalignment='bottom')
 
     ax.set_xlabel('X Coordinate')
     ax.set_ylabel('Y Coordinate')
     ax.set_title(f'Strips and Query Points Visualization for Camera {camera_id}')
     plt.grid(True)
+    plt.legend()
     plt.show()

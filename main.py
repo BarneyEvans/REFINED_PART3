@@ -40,8 +40,8 @@ query_points_single = [[100,800]]
 image_height = 1020
 image_width = 1920
 
-yolo_model_path = r"C:\Users\evans\OneDrive - University of Southampton\Desktop\Year 3\Semester 2\NLP_FINAL_COURSEWORK\pythonProject1\YoloPt\yolov8s.pt"
-image_save = r"C:\Users\evans\OneDrive - University of Southampton\Desktop\Year 3\Semester 2\NLP_FINAL_COURSEWORK\pythonProject1\Output"
+yolo_model_path = r"C:\Users\evans\OneDrive - University of Southampton\Desktop\FINAL\REFINED_PART3\YoloPt\best.pt"
+image_save = r"C:\Users\evans\OneDrive - University of Southampton\Desktop\FINAL\REFINED_PART3\Output"
 
 
 #FOR IMAGE TEST

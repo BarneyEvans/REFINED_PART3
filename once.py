@@ -5,6 +5,7 @@ from collections import defaultdict
 import cv2
 import numpy as np
 from scipy.spatial.transform import Rotation
+import copy
 
 
 def split_info_loader_helper(func):
@@ -346,7 +347,9 @@ class ONCE(object):
                 if 0 <= int(point[0]) < img_buf.shape[1] and 0 <= int(point[1]) < img_buf.shape[0]:
                     try:
                         # Include strip key in the return dictionary
-                        return_dictionary[cam_name].append((valid_point[0], point))
+                        new_point = copy.copy(point)
+                        new_point = [new_point[0], img_buf.shape[0] - new_point[1], new_point[2]]
+                        return_dictionary[cam_name].append((valid_point[0], new_point))
                         cv2.circle(img_buf, (int(point[0]), int(point[1])), 2, color=(50, 205, 50), thickness=-1)
                     except:
                         print(int(point[0]), int(point[1]))

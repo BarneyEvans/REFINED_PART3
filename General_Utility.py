@@ -2,6 +2,8 @@ import open3d as o3d
 import numpy as np
 import os
 import cv2
+import matplotlib.pyplot as plt
+from matplotlib.cm import get_cmap
 
 
 def visualize_coloured_frustums_with_point_cloud(lidar_points, point_colours, frustums, output_bool):
@@ -60,13 +62,13 @@ def image_creation(seq, frame, frust_ums, save_location, dataset):
                         os.unlink(file_path)
                 except Exception as e:
                     print(f"Failed to delete {file_path}. Reason: {e}")
-    if isinstance(frust_ums, dict):
-        img_buf_dict, info = dataset.project_own_lidar_to_image_remove_noise(seq, frame, frust_ums)
-    else:
-        img_buf_dict, info = dataset.project_own_lidar_to_image(seq, frame, frust_ums)
+
+    img_buf_dict, info = dataset.project_own_lidar_to_image_remove_noise(seq, frame, frust_ums)
     for cam_name, img_buf in img_buf_dict.items():
         cv2.imwrite(os.path.join(save_location, f"{seq}_{frame}_{cam_name}_Boundaries.jpg"),
                     cv2.cvtColor(img_buf, cv2.COLOR_BGR2RGB))
+
+    #plot_checker(info["cam03"])
     return info
 
 
@@ -81,3 +83,29 @@ def check_folder(save_folder):
                     os.unlink(file_path)
             except Exception as e:
                 print(f"Failed to delete {file_path}. Reason: {e}")
+
+def plot_checker(data):
+    # Organizing the data by strip
+    strip_points = {}
+    for strip_id, points in data:
+        if strip_id not in strip_points:
+            strip_points[strip_id] = []
+        strip_points[strip_id].append(points[:2])  # Ignore the third element for plotting
+
+    # Plotting
+    fig, ax = plt.subplots()
+    color_map = get_cmap('tab20')  # Using a colormap to ensure unique colors
+    colors = iter(color_map.colors)  # Create an iterator over the color map
+
+    for strip_id, points in strip_points.items():
+        points = np.array(points)  # Convert list of points to a NumPy array for easier slicing
+        ax.plot(points[:, 0], points[:, 1], marker='o', linestyle='-', color=next(colors), label=strip_id)
+
+    ax.set_xlabel('X Coordinate')
+    ax.set_ylabel('Y Coordinate')
+    ax.set_title('Visualization of Strips')
+    ax.set_xlim(left=0)  # Set the minimum x-axis limit to 0
+    ax.set_ylim(bottom=0)  # Set the minimum y-axis limit to 0
+    plt.grid(True)
+    plt.legend()
+    plt.show()
