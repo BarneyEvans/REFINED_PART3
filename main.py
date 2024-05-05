@@ -1,14 +1,13 @@
 from once import ONCE
 from Frustum import return_frustums, project_frustum_to_image
 from Calculate_Boundary import distances_from_points_to_frustums, create_boundary_dict
-from General_Utility import image_creation, visualize_coloured_frustums_with_point_cloud
+from General_Utility import image_creation
 from Logging import logger
-from Boundary_Smoothing import smooth_all_boundaries, interpolate_dots_in_strips
-from Point_Boundary_Seperator import check_point_in_overlaps
 from YoloV8_On_Dataset import predict_on_images
 from Load_And_Save import load_and_save_images
 from Determine_Object_Overlap import bounding_boxes_in_overlap
-import cv2
+from lidar_points_to_image_tracking import extract_points
+from REFINED_PART3.Calculate_Objects_Across_Image import object_across_image
 import time
 
 
@@ -114,8 +113,23 @@ Determine whether an YOLO bounding box is in the overlap
 """
 
 logger.info("Determining whether an objecting is in the YOLO bounding box overlap")
-bounding_boxes_in_overlap(projected_points_to_images, overlap, yolo_data, image_save)
+coordinate_info = bounding_boxes_in_overlap(projected_points_to_images, overlap, yolo_data, image_save)
 
+"""
+Extract LIDAR and respective 2d image coordinates for each image
+"""
+
+logger.info("Extracting lidar and 2d image coordinates for each image")
+point_trackers = extract_points(dataset, seq_id, frame_id, image_save)
+
+"""
+Determine Object Over Images
+"""
+logger.info("Calculating position of object over images in a single frame")
+#object_across_image(point_trackers, coordinate_info)
+
+print(point_trackers["cam05"][0])
+print(coordinate_info[0:1])
 
 
 #images_dict = dataset.project_2D_points_to_image(seq_id, frame_id, projected_points_to_images)

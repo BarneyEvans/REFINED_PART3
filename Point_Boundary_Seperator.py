@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.cm import get_cmap
+from collections import Counter, defaultdict
 
 def check_point_in_overlaps(camera_id, query_points, strips, overlap):
     # Retrieve strip data for the specified camera
@@ -32,18 +33,17 @@ def check_point_in_overlaps(camera_id, query_points, strips, overlap):
     # Compile and return results
     final_results = compile_results(all_valid_strips, query_points, camera_id, query_type, missing_cameras)
 
-    #if camera_id == "cam03":
+    #if camera_id == "cam01":
     #    plot_strips_and_points(strips, query_points, camera_id)
     return final_results
 
 
 def get_strip_data_for_camera(camera_id, strips, overlap, query_points):
-    #if camera_id == "cam03":
-    #    plot_strips_and_points(strips, query_points, camera_id)
+
     # Get the list of cameras that are supposed to overlap with the given camera_id
     valid_cameras = overlap.get(camera_id, [])
-    print(strips)
-    strip_data = strips.get(camera_id, [])
+    strip_data = strips
+
 
     filtered_strip_data = [item for item in strip_data if item[0].split('_')[0] in valid_cameras]
 
@@ -89,14 +89,44 @@ def find_closest_point_by_y(query_points, strip_data):
 
 def check_relative_x_position(all_closest_points):
     all_results = []
+
+    # Iterate over each set of closest points provided for each camera scenario
     for closest_points in all_closest_points:
         results = []
+        strips_info = {}
+
+        # Collect boundary information for each strip in the dataset
         for strip_id, closest_point, query_point in closest_points:
-            if 'strip0' in strip_id:  # Assuming 'strip0' means overlap starts, check query X >= closest X
-                results.append((strip_id, query_point[0] >= closest_point[0], query_point))
-            elif 'strip1' in strip_id:  # Assuming 'strip1' means overlap ends, check query X <= closest X
-                results.append((strip_id, query_point[0] <= closest_point[0], query_point))
+            cam_id, strip_type = strip_id.split('_')
+            if cam_id not in strips_info:
+                strips_info[cam_id] = {}
+            strips_info[cam_id][strip_type] = closest_point[0]
+
+        # Evaluate the position of each query_point against the collected strip boundaries
+        for strip_id, closest_point, query_point in closest_points:
+            cam_id, strip_type = strip_id.split('_')
+            if 'strip0' in strips_info[cam_id] and 'strip1' in strips_info[cam_id]:
+                # Both boundaries are present, check if query_point is between them
+                left_bound = min(strips_info[cam_id]['strip0'], strips_info[cam_id]['strip1'])
+                right_bound = max(strips_info[cam_id]['strip0'], strips_info[cam_id]['strip1'])
+                if left_bound <= query_point[0] <= right_bound:
+                    results.append((strip_id, True, query_point))
+                else:
+                    results.append((strip_id, False, query_point))
+            else:
+                strip_type = strip_id.split('_')[-1]
+
+                # Check the relative position of query_point based on the strip type
+                if strip_type == 'strip0' and query_point[0] >= closest_point[0]:
+                    results.append((strip_id, True, query_point))
+                elif strip_type == 'strip1' and query_point[0] <= closest_point[0]:
+                    results.append((strip_id, True, query_point))
+                else:
+                    results.append((strip_id, False, query_point))
+
+        # Append the results of this camera's set of points to the overall results
         all_results.append(results)
+
     return all_results
 
 
@@ -137,6 +167,7 @@ def compile_results(all_valid_strips, query_points, camera_id, query_type, missi
             overlap_dict[tuple(query_points[idx])] = (camera_id, [])
         else:
             if len(valid_strips) == 1:
+
                 result = f"Within Camera {camera_id} the {query_type} {query_points[idx]} lies within the following overlap region of {', '.join(overlap_cams)}"
             else:
                 result = f"Within Camera {camera_id} the {query_type} {query_points[idx]} lies within the following overlap regions of {', '.join(overlap_cams)}"
@@ -150,7 +181,7 @@ def plot_strips_and_points(strips, query_points, camera_id):
     fig, ax = plt.subplots()
 
     # Check and extract data from strips
-    strip_data = strips.get(camera_id, [])
+    strip_data = strips
     if not strip_data or not all(len(data) == 2 for data in strip_data):
         print("Error: Data format is incorrect or missing")
         return

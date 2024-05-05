@@ -457,6 +457,42 @@ class ONCE(object):
 
         return points_img_dict, unique_points, colors
 
+    def tracking_lidar_to_image(self, seq_id, frame_id):
+        points = self.load_point_cloud(seq_id, frame_id)
+
+        split_name = self._find_split_name(seq_id)
+        frame_info = getattr(self, '{}_info'.format(split_name))[seq_id][frame_id]
+        points_img_dict = dict()
+        img_list, new_cam_intrinsic_dict = self.undistort_image_v2(seq_id, frame_id)
+        image_lidar_points = {}
+        for cam_no, cam_name in enumerate(self.__class__.camera_names):
+            image_lidar_points[cam_name] = []  # Initialize empty list for tuples
+            calib_info = frame_info['calib'][cam_name]
+            cam_2_velo = calib_info['cam_to_velo']
+            cam_intri = np.hstack([new_cam_intrinsic_dict[cam_name], np.zeros((3, 1), dtype=np.float32)])
+
+            point_xyz = points[:, :3]  # Select only X, Y, Z for transformations
+            points_homo = np.hstack(
+                [point_xyz, np.ones(point_xyz.shape[0], dtype=np.float32).reshape((-1, 1))])
+            points_lidar = np.dot(points_homo, np.linalg.inv(cam_2_velo).T)
+            mask = points_lidar[:, 2] > 0
+            points_lidar = points_lidar[mask]
+            points_img = np.dot(points_lidar, cam_intri.T)
+            points_img = points_img / points_img[:, [2]]  # Normalized with Z coordinate
+
+            img_buf = img_list[cam_no]
+
+            # Use the same mask to filter original LiDAR points but only select X, Y, Z
+            original_lidar_points = points[mask, :3]  # Trim to [X, Y, Z]
+
+            for point, lidar_point in zip(points_img, original_lidar_points):
+                x, y = point[0], point[1]  # Convert image coordinates to integer
+                if 0 <= x < img_buf.shape[1] and 0 <= y < img_buf.shape[0]:
+                    image_lidar_points[cam_name].append(([x, y], lidar_point))  # Store 2D image point
+                    cv2.circle(img_buf, (int(x), int(y)), 2, color=(0, 0, 255), thickness=-1)
+            points_img_dict[cam_name] = img_buf
+        return points_img_dict, image_lidar_points
+
 
 
 if __name__ == '__main__':
