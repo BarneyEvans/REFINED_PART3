@@ -157,11 +157,9 @@ def compile_results(all_valid_strips, query_points, camera_id, query_type, missi
     compiled_results = []
     overlap_dict = {}
     for idx, valid_strips in enumerate(all_valid_strips):
-        # Get overlapping camera IDs from strip identifiers
         overlap_cams = [strip.split('_')[0] for strip in valid_strips]
         if missing_cameras:
             overlap_cams.extend(missing_cameras)
-        # Format results message
         if not valid_strips and len(missing_cameras) == 0:
             result = f"This {query_type} does not lie within an overlapping region within Camera {camera_id}"
             overlap_dict[tuple(query_points[idx])] = (camera_id, [])
@@ -173,9 +171,22 @@ def compile_results(all_valid_strips, query_points, camera_id, query_type, missi
                 result = f"Within Camera {camera_id} the {query_type} {query_points[idx]} lies within the following overlap regions of {', '.join(overlap_cams)}"
             overlap_dict[tuple(query_points[idx])] = (camera_id, overlap_cams)
         compiled_results.append(result)
-
+    overlap_dict = remove_duplicates_from_cameras(overlap_dict)
     return compiled_results, overlap_dict
 
+
+
+def remove_duplicates_from_cameras(camera_dict):
+    filtered_dict = {}
+    for coords, (primary_cam, cam_list) in camera_dict.items():
+        seen = set()
+        filtered_list = []
+        for cam in cam_list:
+            if cam not in seen:
+                filtered_list.append(cam)
+                seen.add(cam)
+        filtered_dict[coords] = (primary_cam, filtered_list)
+    return filtered_dict
 
 def plot_strips_and_points(strips, query_points, camera_id):
     fig, ax = plt.subplots()

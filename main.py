@@ -6,10 +6,10 @@ from Logging import logger
 from YoloV8_On_Dataset import predict_on_images
 from Load_And_Save import load_and_save_images
 from Determine_Object_Overlap import bounding_boxes_in_overlap
-from lidar_points_to_image_tracking import extract_points
-from REFINED_PART3.Calculate_Objects_Across_Image import object_across_image
+from Lidar_points_to_image_tracking import extract_points
+from Calculate_Objects_Across_Image import object_across_image
 import time
-
+import datetime
 
 
 
@@ -24,8 +24,10 @@ INFORMATION FOR ALL RELEVANT FUNCTIONS
 """
 
 dataset = ONCE(r'C:\Users\evans\OneDrive - University of Southampton\Desktop\Year 3\Year 3 Project\Full_DataSet')
-seq_id = "000076"
-frame_id = "1616343528200"
+#seq_id = "000076"
+#frame_id = "1616343528200"
+seq_id = "000028"
+frame_id = "1616102478800"
 cam_names = ["cam01", "cam03", "cam05", "cam06", "cam07", "cam08", "cam09"]
 
 near_plane = 0.1
@@ -123,13 +125,21 @@ logger.info("Extracting lidar and 2d image coordinates for each image")
 point_trackers = extract_points(dataset, seq_id, frame_id, image_save)
 
 """
-Determine Object Over Images
+Object Tracking
 """
 logger.info("Calculating position of object over images in a single frame")
-#object_across_image(point_trackers, coordinate_info)
+#data = object_across_image(point_trackers, coordinate_info, 0.5)
 
-print(point_trackers["cam05"][0])
-print(coordinate_info[0:1])
+
+#print(data)
+
+
+now = datetime.datetime.now()
+print(now.time())
+
+
+#print(point_trackers["cam05"][0])
+#print(coordinate_info[0:1])
 
 
 #images_dict = dataset.project_2D_points_to_image(seq_id, frame_id, projected_points_to_images)
