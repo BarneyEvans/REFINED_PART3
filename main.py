@@ -24,10 +24,10 @@ INFORMATION FOR ALL RELEVANT FUNCTIONS
 """
 
 dataset = ONCE(r'C:\Users\evans\OneDrive - University of Southampton\Desktop\Year 3\Year 3 Project\Full_DataSet')
-#seq_id = "000076"
-#frame_id = "1616343528200"
-seq_id = "000028"
-frame_id = "1616102478800"
+seq_id = "000076"
+frame_id = "1616343528200"
+#seq_id = "000028"
+#frame_id = "1616102478800"
 cam_names = ["cam01", "cam03", "cam05", "cam06", "cam07", "cam08", "cam09"]
 
 near_plane = 0.1
@@ -41,8 +41,8 @@ query_points_single = [[100,800]]
 image_height = 1020
 image_width = 1920
 
-yolo_model_path = r"C:\Users\evans\OneDrive - University of Southampton\Desktop\FINAL\REFINED_PART3\YoloPt\best.pt"
-image_save = r"C:\Users\evans\OneDrive - University of Southampton\Desktop\FINAL\REFINED_PART3\Output"
+yolo_model_path = r"C:\Users\evans\OneDrive - University of Southampton\Desktop\Year 3\Semester 2\NLP_FINAL_COURSEWORK\pythonProject4\REFINED_PART3\YoloPt\best.pt"
+image_save = r"C:\Users\evans\OneDrive - University of Southampton\Desktop\Year 3\Semester 2\NLP_FINAL_COURSEWORK\pythonProject4\REFINED_PART3\Output"
 
 
 #FOR IMAGE TEST
