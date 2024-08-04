@@ -4,6 +4,8 @@ import os
 import cv2
 import matplotlib.pyplot as plt
 from matplotlib.cm import get_cmap
+import matplotlib.colors as mcolors
+from PIL import Image
 
 
 def visualize_coloured_frustums_with_point_cloud(lidar_points, point_colours, frustums, output_bool):
@@ -109,3 +111,154 @@ def plot_checker(data):
     plt.grid(True)
     plt.legend()
     plt.show()
+
+
+def generate_custom_colours(n):
+    if n == 7:
+        # Custom colour arrangement for 7 cameras
+        colours = [
+            (1, 0, 0),  # Red
+            (0, 1, 0),  # Green
+            (0, 0, 1),  # Blue
+            (1, 1, 0),  # Yellow
+            (1, 0, 1),  # Magenta
+            (0, 1, 1),  # Cyan
+            (0, 0, 0)  # Black
+        ]
+    else:
+        colours = list(mcolors.CSS4_COLORS.values())
+        np.random.shuffle(colours)
+        colours = [mcolors.to_rgb(colours[i]) for i in range(n)]
+
+    return colours
+
+
+def visualise_frustums_with_point_cloud(lidar_points, frustums, output_bool, use_black_frustums):
+    geometries = []
+    frustum_line_equations = []
+
+    if lidar_points is not None:
+        if lidar_points.size == 0:
+            raise ValueError("LiDAR points array cannot be empty.")
+
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(lidar_points)
+
+        grey_colour = [[0.5, 0.5, 0.5] for _ in lidar_points]
+        pcd.colors = o3d.utility.Vector3dVector(grey_colour)
+
+        geometries.append(pcd)
+
+    if frustums is not None:
+        num_frustums = len(frustums)
+        if use_black_frustums:
+            frustum_colours = [(0, 0, 0) for _ in range(num_frustums)]
+        else:
+            frustum_colours = generate_custom_colours(num_frustums)
+
+        for idx, (key, points_lidar) in enumerate(frustums.items()):
+            full_edge_pairs = [[i, i + 4] for i in range(4)] + \
+                              [[i, (i + 1) % 4] for i in range(4)] + \
+                              [[i + 4, (i + 1) % 4 + 4] for i in range(4)]
+
+            line_set = o3d.geometry.LineSet(
+                points=o3d.utility.Vector3dVector(points_lidar),
+                lines=o3d.utility.Vector2iVector(full_edge_pairs),
+            )
+            line_set.colors = o3d.utility.Vector3dVector([frustum_colours[idx] for _ in full_edge_pairs])
+            geometries.append(line_set)
+
+            top_edge_pairs = [[2, 6], [3, 7]]
+            for start_idx, end_idx in top_edge_pairs:
+                P0 = points_lidar[start_idx]
+                P1 = points_lidar[end_idx]
+                direction = np.array(P1) - np.array(P0)
+                frustum_line_equations.append((P0, direction))
+
+    if output_bool and geometries:
+        o3d.visualization.draw_geometries(geometries)
+
+    return frustum_line_equations if frustums is not None else None
+
+
+def generate_custom_colours(n):
+    if n == 7:
+        # Custom colour arrangement for 7 cameras
+        colours = [
+            (1, 0, 0),  # Red
+            (0, 1, 0),  # Green
+            (0, 0, 1),  # Blue
+            (1, 1, 0),  # Yellow
+            (1, 0, 1),  # Magenta
+            (0, 1, 1),  # Cyan
+            (0, 0, 0)  # Black
+        ]
+    elif n == 2:
+        colours = [
+            (1, 0, 0),  # Red
+            (0, 0, 1)  # Blue
+        ]
+    else:
+        colours = list(mcolors.CSS4_COLORS.values())
+        np.random.shuffle(colours)
+        colours = [mcolors.to_rgb(colours[i]) for i in range(n)]
+
+    return colours
+
+
+def visualise_top_edges_with_point_cloud(lidar_points, frustum_edges, output_bool, use_black_edges):
+    geometries = []
+
+    if lidar_points is not None:
+        if lidar_points.size == 0:
+            raise ValueError("LiDAR points array cannot be empty.")
+
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(lidar_points)
+
+        grey_colour = [[0.5, 0.5, 0.5] for _ in lidar_points]
+        pcd.colors = o3d.utility.Vector3dVector(grey_colour)
+
+        geometries.append(pcd)
+
+    num_frustums = len(frustum_edges)
+    if use_black_edges:
+        edge_colours = [(0, 0, 0) for _ in range(num_frustums)]
+    else:
+        edge_colours = generate_custom_colours(num_frustums)
+
+    for idx, (key, edges) in enumerate(frustum_edges.items()):
+        points = []
+        lines = []
+        for i, (start, end) in enumerate(edges):
+            points.append(start)
+            points.append(end)
+            lines.append([2 * i, 2 * i + 1])
+
+        line_set = o3d.geometry.LineSet(
+            points=o3d.utility.Vector3dVector(np.array(points)),
+            lines=o3d.utility.Vector2iVector(lines),
+        )
+        line_set.colors = o3d.utility.Vector3dVector([edge_colours[idx] for _ in lines])
+        geometries.append(line_set)
+
+    if output_bool and geometries:
+        o3d.visualization.draw_geometries(geometries)
+
+
+def stitch_images_horizontally(image_path1, image_path2, output_path):
+    image1 = Image.open(image_path1)
+    image2 = Image.open(image_path2)
+
+    width1, height1 = image1.size
+    width2, height2 = image2.size
+
+    new_width = width1 + width2
+    new_height = max(height1, height2)
+
+    new_image = Image.new('RGB', (new_width, new_height))
+
+    new_image.paste(image1, (0, 0))
+    new_image.paste(image2, (width1, 0))
+
+    new_image.save(output_path)

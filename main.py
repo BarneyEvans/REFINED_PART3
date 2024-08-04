@@ -1,7 +1,7 @@
 from once import ONCE
 from Frustum import return_frustums, project_frustum_to_image
 from Calculate_Boundary import distances_from_points_to_frustums, create_boundary_dict
-from General_Utility import image_creation
+from General_Utility import image_creation, visualize_coloured_frustums_with_point_cloud, visualise_frustums_with_point_cloud, visualise_top_edges_with_point_cloud
 from Logging import logger
 from YoloV8_On_Dataset import predict_on_images
 from Load_And_Save import load_and_save_images
@@ -28,21 +28,24 @@ seq_id = "000076"
 frame_id = "1616343528200"
 #seq_id = "000028"
 #frame_id = "1616102478800"
-cam_names = ["cam01", "cam03", "cam05", "cam06", "cam07", "cam08", "cam09"]
+#cam_names = ["cam01", "cam03", "cam05", "cam06", "cam07", "cam08", "cam09"]
+cam_names = ["cam07", "cam08"]
 
 near_plane = 0.1
-far_plane = 150
+far_plane = 200
 
-max_threshold = 0.27
-base_threshold = 0.03
+max_threshold = 0.3
+base_threshold = 0.3
 
 query_points_single = [[100,800]]
 
 image_height = 1020
 image_width = 1920
 
-yolo_model_path = r"C:\Users\evans\OneDrive - University of Southampton\Desktop\Year 3\Semester 2\NLP_FINAL_COURSEWORK\pythonProject4\REFINED_PART3\YoloPt\best.pt"
-image_save = r"C:\Users\evans\OneDrive - University of Southampton\Desktop\Year 3\Semester 2\NLP_FINAL_COURSEWORK\pythonProject4\REFINED_PART3\Output"
+yolo_model_path = r"C:\Users\evans\OneDrive\Desktop\NEW_PROJECT_THIRD_YEAR\Third_Year_Project\REFINED_PART3\YoloPt\yolov8s.pt"
+
+#MUST BE CHANGED TO PREFERED LOCATION
+image_save = r"C:\Users\evans\OneDrive\Desktop\NEW_PROJECT_THIRD_YEAR\Third_Year_Project\REFINED_PART3\Output"
 
 
 #FOR IMAGE TEST
@@ -73,12 +76,21 @@ logger.info("Extracting frustum edges")
 package_info = [new_cam_intrinsics_dict, old_intrinsic_dict, extrinsic_dict, cam_names, near_plane, far_plane]
 frustums, top_edges = return_frustums(package_info)
 
+#print(frustums)
+#print(unique_points)
+print(top_edges)
+
 """
 Generate general overlapping regions
 """
+
 time.sleep(0.1)
 overlap = project_frustum_to_image(new_cam_intrinsics_dict, extrinsic_dict, frustums, image_width, image_height)
 #print(overlap)
+
+#ok = visualise_frustums_with_point_cloud(unique_points, top_edges, True, True)
+#nok = visualise_top_edges_with_point_cloud(unique_points, top_edges, True, False)
+
 
 
 """
